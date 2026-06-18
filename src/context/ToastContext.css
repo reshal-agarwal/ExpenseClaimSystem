@@ -1,0 +1,58 @@
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 300px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  pointer-events: auto;
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Let's make sure toasts also follow the straight edge rule */
+.toast {
+  border-radius: var(--radius-md); 
+}
+
+.toast.toast-success {
+  border-left: 4px solid var(--secondary-color);
+}
+
+.toast.toast-error {
+  border-left: 4px solid var(--danger-color);
+}
+
+.toast.toast-info {
+  border-left: 4px solid var(--primary-color);
+}
+
+.toast.toast-leaving {
+  animation: fadeOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}

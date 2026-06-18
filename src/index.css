@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Color Palette */
+  --bg-color: #0f172a; /* Deep blue/slate */
+  --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  --panel-bg: rgba(255, 255, 255, 0.05);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --primary-color: #6366f1; /* Indigo */
+  --primary-hover: #4f46e5;
+  --secondary-color: #10b981; /* Emerald for success/approve */
+  --danger-color: #ef4444; /* Red for reject/flag */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --glass-blur: 12px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.light-mode {
+  --bg-color: #f1f5f9; 
+  --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  --panel-bg: rgba(255, 255, 255, 0.8);
+  --panel-border: rgba(0, 0, 0, 0.1);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Utilities */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.page-title {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(to right, #a5b4fc, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.page-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+/* Glassmorphism Panel */
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Layouts */
+.layout-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Tables */
+.glass-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.glass-table th {
+  padding: 1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.glass-table td {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.glass-table tbody tr {
+  transition: var(--transition);
+}
+
+.glass-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Status Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.badge-info {
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}

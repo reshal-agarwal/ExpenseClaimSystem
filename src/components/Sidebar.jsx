@@ -57,8 +57,8 @@ export function Sidebar({ menuItems = [] }) {
       gap: "8px"
     }}>
       <div style={{ padding: "0 12px 24px 12px", marginBottom: "12px", borderBottom: "1px solid var(--panel-border)" }}>
-        <h2 style={{ fontSize: "1.5rem", fontWeight: "700", background: "linear-gradient(to right, #818cf8, #c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-          ECMS Portal
+        <h2 style={{ fontSize: "1.3rem", fontWeight: "800", letterSpacing: "-0.5px", background: "linear-gradient(to right, #60a5fa, #c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          TATA SmartClaim AI
         </h2>
       </div>
 

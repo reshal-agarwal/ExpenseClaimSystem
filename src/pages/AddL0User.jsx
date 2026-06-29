@@ -8,7 +8,7 @@ import {
 
 import { auth, db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
-import { Input, Select } from "../components/Input";
+import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { useToast } from "../context/ToastContext";
 
@@ -22,7 +22,6 @@ function AddL0User() {
   const [agencyName, setAgencyName] = useState("");
   const [agencyFee, setAgencyFee] = useState("");
 
-  const [baseRegion, setBaseRegion] = useState("");
   const [baseLocation, setBaseLocation] = useState("");
 
   const [joiningDate, setJoiningDate] = useState("");
@@ -46,7 +45,6 @@ function AddL0User() {
         role: "L0",
         agencyName,
         agencyFee: Number(agencyFee),
-        baseRegion,
         baseLocation,
         joiningDate,
         managerId,
@@ -57,7 +55,7 @@ function AddL0User() {
       showToast("L0 Engineer Created Successfully", "success");
 
       setName(""); setEmail(""); setEmployeeId(""); setPassword("");
-      setAgencyName(""); setAgencyFee(""); setBaseRegion("");
+      setAgencyName(""); setAgencyFee("");
       setBaseLocation(""); setJoiningDate("");
 
     } catch (error) {
@@ -92,11 +90,6 @@ function AddL0User() {
             <Input label="Agency Name" placeholder="Tech Agency" value={agencyName} onChange={(e) => setAgencyName(e.target.value)} />
             <Input label="Agency Fee (%)" type="number" placeholder="10" value={agencyFee} onChange={(e) => setAgencyFee(e.target.value)} />
 
-            <Select label="Base Region" value={baseRegion} onChange={(e) => setBaseRegion(e.target.value)}>
-              <option value="">Select Region</option>
-              <option value="NLD">NLD</option>
-              <option value="METRO">METRO</option>
-            </Select>
             <Input label="Base Location" placeholder="e.g. Bangalore" value={baseLocation} onChange={(e) => setBaseLocation(e.target.value)} />
 
             <Input label="Joining Date" type="date" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} />

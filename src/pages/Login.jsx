@@ -87,8 +87,8 @@ function Login() {
           }}>
             <LogIn color="white" size={32} />
           </div>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: "700", color: "white" }}>Welcome to ECMS</h2>
-          <p className="text-secondary" style={{ marginTop: "8px", fontSize: "0.9rem" }}>Sign in to continue</p>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "700", color: "white" }}>TATA SmartClaim AI</h2>
+          <p className="text-secondary" style={{ marginTop: "8px", fontSize: "0.9rem" }}>TATA Enterprise Expense Management Portal</p>
         </div>
 
         <div style={{ textAlign: "left" }}>

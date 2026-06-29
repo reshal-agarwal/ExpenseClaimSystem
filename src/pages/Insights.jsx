@@ -76,14 +76,13 @@ function Insights() {
   }, [usersList]);
 
   const l1Managers = useMemo(() => {
-    if (role === "L2" || (role === "MASTER" && selectedL2 !== "ALL")) {
-      const targetL2Id = role === "L2" ? currentUid : selectedL2;
+    if (role === "MASTER" && selectedL2 !== "ALL") {
       return usersList.filter(
-        (u) => u.role === "L1" && (u.managerId === targetL2Id || u.createdBy === "L2")
+        (u) => u.role === "L1" && (u.managerId === selectedL2 || u.createdBy === "L2")
       );
     }
     return usersList.filter((u) => u.role === "L1");
-  }, [usersList, role, currentUid, selectedL2]);
+  }, [usersList, role, selectedL2]);
 
   const l0Engineers = useMemo(() => {
     if (role === "L0") {

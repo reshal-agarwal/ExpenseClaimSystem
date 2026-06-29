@@ -40,8 +40,8 @@ function ManageUsers() {
 
       let q;
       if (currentRole === "L2") {
-        // L2 sees L1s they manage
-        q = query(collection(db, "user"), where("role", "==", "L1"), where("managerId", "==", uid));
+        // L2 sees all L1 managers
+        q = query(collection(db, "user"), where("role", "==", "L1"));
       } else if (currentRole === "L1") {
         // L1 sees L0s they manage
         q = query(collection(db, "user"), where("role", "==", "L0"), where("managerId", "==", uid));

@@ -9,6 +9,7 @@ import {
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Button } from "../components/Button";
+import { Input } from "../components/Input";
 import { useToast } from "../context/ToastContext";
 
 function L1Claims() {
@@ -16,6 +17,8 @@ function L1Claims() {
   const [allClaims, setAllClaims] = useState([]);
   const [viewMode, setViewMode] = useState("FLAT"); // FLAT, MONTH, NAME
   const [filterEngineer, setFilterEngineer] = useState("ALL");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ claimAmount: 0, distanceTravelled: 0 });
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -107,6 +110,39 @@ function L1Claims() {
     } catch (error) {
       console.log(error);
       showToast("Failed to reject claim", "error");
+    }
+  };
+
+  const startEditing = (req) => {
+    setEditingId(req.id);
+    setEditForm({
+      claimAmount: req.claimAmount || 0,
+      distanceTravelled: req.distanceTravelled || 0
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+  };
+
+  const approveEditedClaim = async (id, claimType) => {
+    try {
+      const collectionName = claimType === "MISCELLANEOUS" ? "miscClaims" : "travelRequests";
+      const updateData = {
+        requestStatus: "APPROVED",
+        claimAmount: Number(editForm.claimAmount),
+        updatedAt: serverTimestamp()
+      };
+      if (claimType !== "MISCELLANEOUS") {
+        updateData.distanceTravelled = Number(editForm.distanceTravelled);
+      }
+      await updateDoc(doc(db, collectionName, id), updateData);
+      showToast("Claim Edited and Approved Successfully", "success");
+      setEditingId(null);
+      fetchClaims();
+    } catch (error) {
+      console.log(error);
+      showToast("Failed to update claim", "error");
     }
   };
 
@@ -296,14 +332,42 @@ function L1Claims() {
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end" }}>
-          <h2 style={{ color: "var(--success)", margin: 0 }}>₹{request.claimAmount}</h2>
-          <Button variant="success" onClick={() => acceptClaim(request.id, request.claimType)}>
-            <Check size={18} /> Accept Claim
-          </Button>
-          <Button variant="danger" onClick={() => rejectClaim(request.id, request.claimType)}>
-            <X size={18} /> Reject Claim
-          </Button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end", minWidth: "220px" }}>
+          {editingId === request.id ? (
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "10px", background: "var(--bg-secondary)", padding: "12px", borderRadius: "8px", border: "1px solid var(--primary-color)" }}>
+              <div>
+                <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Claim Amount (₹)</label>
+                <Input type="number" value={editForm.claimAmount} onChange={(e) => setEditForm({...editForm, claimAmount: e.target.value})} style={{ marginBottom: "0px" }} />
+              </div>
+              {request.claimType !== "MISCELLANEOUS" && (
+                <div>
+                  <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Distance (KM)</label>
+                  <Input type="number" value={editForm.distanceTravelled} onChange={(e) => setEditForm({...editForm, distanceTravelled: e.target.value})} style={{ marginBottom: "0px" }} />
+                </div>
+              )}
+              <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                <Button variant="success" onClick={() => approveEditedClaim(request.id, request.claimType)} style={{ flex: 1, padding: "8px" }}>
+                  Save & Approve
+                </Button>
+                <Button variant="outline" onClick={cancelEditing} style={{ padding: "8px" }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 style={{ color: "var(--success)", margin: 0 }}>₹{request.claimAmount}</h2>
+              <Button variant="primary" onClick={() => startEditing(request)} style={{ width: "100%" }}>
+                Edit Claim
+              </Button>
+              <Button variant="success" onClick={() => acceptClaim(request.id, request.claimType)} style={{ width: "100%" }}>
+                <Check size={18} /> Accept Claim
+              </Button>
+              <Button variant="danger" onClick={() => rejectClaim(request.id, request.claimType)} style={{ width: "100%" }}>
+                <X size={18} /> Reject Claim
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { LayoutDashboard, Users, User, Trash2, UserPlus, FileSpreadsheet, AlertTriangle, ClipboardCheck, ShieldAlert } from "lucide-react";
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { LayoutDashboard, Users, User, Trash2, UserPlus, FileSpreadsheet, AlertTriangle, ClipboardCheck, ShieldAlert, Edit, Check, X } from "lucide-react";
 
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Button } from "../components/Button";
+import { Input } from "../components/Input";
 import { useToast } from "../context/ToastContext";
 
 function ManageUsers() {
   const [subordinates, setSubordinates] = useState([]);
   const [role, setRole] = useState("L1");
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editForm, setEditForm] = useState({ name: "", employeeId: "" });
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -22,11 +25,21 @@ function ManageUsers() {
       const currentRole = localStorage.getItem("role");
       setRole(currentRole);
 
-      let q;
       if (currentRole === "MASTER") {
-        // Master sees all L2s
-        q = query(collection(db, "user"), where("role", "==", "L2"));
-      } else if (currentRole === "L2") {
+        const snap = await getDocs(collection(db, "user"));
+        const usersList = [];
+        snap.forEach(doc => {
+          const data = doc.data();
+          if (data.role !== "MASTER") {
+            usersList.push({ id: doc.id, ...data });
+          }
+        });
+        setSubordinates(usersList);
+        return;
+      }
+
+      let q;
+      if (currentRole === "L2") {
         // L2 sees L1s they manage
         q = query(collection(db, "user"), where("role", "==", "L1"), where("managerId", "==", uid));
       } else if (currentRole === "L1") {
@@ -73,6 +86,38 @@ function ManageUsers() {
     }
   };
 
+  const startEditingUser = (userObj) => {
+    setEditingUserId(userObj.id);
+    setEditForm({
+      name: userObj.name || "",
+      employeeId: userObj.employeeId || ""
+    });
+  };
+
+  const cancelEditingUser = () => {
+    setEditingUserId(null);
+  };
+
+  const saveUserEdit = async (userId) => {
+    try {
+      if (!editForm.name.trim() || !editForm.employeeId.trim()) {
+        showToast("Name and Employee ID cannot be empty", "error");
+        return;
+      }
+      await updateDoc(doc(db, "user", userId), {
+        name: editForm.name.trim(),
+        employeeId: editForm.employeeId.trim(),
+        updatedAt: serverTimestamp()
+      });
+      showToast("User details updated successfully!", "success");
+      setEditingUserId(null);
+      fetchSubordinates();
+    } catch (error) {
+      console.error("Error updating user:", error);
+      showToast("Failed to update user details", "error");
+    }
+  };
+
   const getMenuItems = () => {
     if (role === "MASTER") {
       return [
@@ -106,7 +151,7 @@ function ManageUsers() {
   };
 
   const getSubordinateRoleName = () => {
-    if (role === "MASTER") return "L2 Engineers";
+    if (role === "MASTER") return "All System Users";
     if (role === "L2") return "L1 Managers";
     return "L0 Engineers";
   };
@@ -117,7 +162,7 @@ function ManageUsers() {
 
       <div className="main-content animate-fade-in">
         <h1 className="page-title">Manage {getSubordinateRoleName()}</h1>
-        <p className="page-subtitle">View and delete your assigned subordinates.</p>
+        <p className="page-subtitle">View, edit details, or delete assigned users.</p>
 
         {subordinates.length === 0 && (
           <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
@@ -128,28 +173,63 @@ function ManageUsers() {
         <div style={{ display: "grid", gap: "15px", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
           {subordinates.map((userObj) => (
             <div key={userObj.id} className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <h3 style={{ fontSize: "1.2rem", marginBottom: "8px", color: "var(--primary-color)" }}>{userObj.name}</h3>
-                <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
-                  <strong style={{ color: "var(--text-primary)" }}>Emp ID:</strong> {userObj.employeeId || "N/A"}
-                </p>
-                <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
-                  <strong style={{ color: "var(--text-primary)" }}>Email:</strong> {userObj.email}
-                </p>
-                {userObj.baseRegion && (
+              {editingUserId === userObj.id ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "15px" }}>
+                  <div>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>User Name</label>
+                    <Input value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} style={{ marginBottom: "0px" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Employee ID</label>
+                    <Input value={editForm.employeeId} onChange={(e) => setEditForm({...editForm, employeeId: e.target.value})} style={{ marginBottom: "0px" }} />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <h3 style={{ fontSize: "1.2rem", color: "var(--primary-color)", margin: 0 }}>{userObj.name}</h3>
+                    <span style={{ fontSize: "0.75rem", padding: "2px 8px", borderRadius: "12px", background: "rgba(99, 102, 241, 0.2)", color: "#a5b4fc", border: "1px solid rgba(99, 102, 241, 0.4)", fontWeight: "600" }}>{userObj.role || "USER"}</span>
+                  </div>
                   <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
-                    <strong style={{ color: "var(--text-primary)" }}>Region:</strong> {userObj.baseRegion}
+                    <strong style={{ color: "var(--text-primary)" }}>Emp ID:</strong> {userObj.employeeId || "N/A"}
                   </p>
-                )}
-                {userObj.baseLocation && (
-                  <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "15px" }}>
-                    <strong style={{ color: "var(--text-primary)" }}>Location:</strong> {userObj.baseLocation}
+                  <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
+                    <strong style={{ color: "var(--text-primary)" }}>Email:</strong> {userObj.email}
                   </p>
+                  {userObj.baseRegion && (
+                    <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
+                      <strong style={{ color: "var(--text-primary)" }}>Region:</strong> {userObj.baseRegion}
+                    </p>
+                  )}
+                  {userObj.baseLocation && (
+                    <p className="text-secondary" style={{ fontSize: "0.9rem", marginBottom: "15px" }}>
+                      <strong style={{ color: "var(--text-primary)" }}>Location:</strong> {userObj.baseLocation}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: "10px", flexDirection: "column" }}>
+                {editingUserId === userObj.id ? (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button variant="success" onClick={() => saveUserEdit(userObj.id)} style={{ flex: 1, justifyContent: "center" }}>
+                      <Check size={18} /> Save
+                    </Button>
+                    <Button variant="outline" onClick={cancelEditingUser} style={{ flex: 1, justifyContent: "center" }}>
+                      <X size={18} /> Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button variant="primary" onClick={() => startEditingUser(userObj)} style={{ width: "100%", justifyContent: "center" }}>
+                      <Edit size={18} /> Edit Name & ID
+                    </Button>
+                    <Button variant="danger" onClick={() => handleDeleteUser(userObj)} style={{ width: "100%", justifyContent: "center" }}>
+                      <Trash2 size={18} /> Delete Account
+                    </Button>
+                  </>
                 )}
               </div>
-              <Button variant="danger" onClick={() => handleDeleteUser(userObj)} style={{ width: "100%", justifyContent: "center" }}>
-                <Trash2 size={18} /> Delete Account
-              </Button>
             </div>
           ))}
         </div>

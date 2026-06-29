@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { LayoutDashboard, UserPlus, Users, User, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, UserPlus, Users, User, ShieldAlert, FileSpreadsheet } from "lucide-react";
 
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
@@ -14,18 +14,22 @@ function MasterDashboard() {
     const fetchData = async () => {
       try {
         const uid = localStorage.getItem("uid");
-        const userDoc = await getDoc(doc(db, "user", uid));
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
+        if (uid) {
+          const userDoc = await getDoc(doc(db, "user", uid));
+          if (userDoc.exists()) {
+            setUserData(userDoc.data());
+          }
         }
 
         const l2Query = query(collection(db, "user"), where("role", "==", "L2"));
         const l2Snap = await getDocs(l2Query);
 
-        const allUsersQuery = collection(db, "user");
-        const allUsersSnap = await getDocs(allUsersQuery);
+        const allUsersSnap = await getDocs(collection(db, "user"));
 
-        setStats({ activeL2: l2Snap.size, totalUsers: allUsersSnap.size });
+        setStats({
+          activeL2: l2Snap.size,
+          totalUsers: allUsersSnap.size
+        });
 
       } catch (error) {
         console.error(error);
@@ -37,6 +41,7 @@ function MasterDashboard() {
 
   const menuItems = [
     { text: "Dashboard", path: "/master", icon: <LayoutDashboard size={20} /> },
+    { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
     { text: "Add L2 User", path: "/add-l2", icon: <UserPlus size={20} /> },
     { text: "Manage Users", path: "/users", icon: <Users size={20} /> },
     { text: "System Logs", path: "/logs", icon: <ShieldAlert size={20} /> },

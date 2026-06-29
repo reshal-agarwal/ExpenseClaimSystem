@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { LayoutDashboard, UserPlus, Users, User, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, UserPlus, Users, User, ShieldAlert, FileSpreadsheet } from "lucide-react";
 
 import { auth, db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
@@ -50,6 +50,7 @@ function AddL2User() {
 
   const menuItems = [
     { text: "Dashboard", path: "/master", icon: <LayoutDashboard size={20} /> },
+    { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
     { text: "Add L2 User", path: "/add-l2", icon: <UserPlus size={20} /> },
     { text: "View All Users", path: "/users", icon: <Users size={20} /> },
     { text: "System Logs", path: "/logs", icon: <ShieldAlert size={20} /> },

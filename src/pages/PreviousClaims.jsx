@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
-import { LayoutDashboard, FileSpreadsheet, User } from "lucide-react";
+import { LayoutDashboard, FileSpreadsheet, User, UserPlus, Users, ShieldAlert, AlertTriangle } from "lucide-react";
 
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
@@ -235,25 +235,62 @@ function PreviousClaims() {
 
     const workbook = XLSX.utils.book_new();
 
-    const worksheet1 = XLSX.utils.json_to_sheet(excelData.length > 0 ? excelData : [{ "Notice": "No claims data." }]);
-    const worksheet2 = XLSX.utils.json_to_sheet(billsData.length > 0 ? billsData : [{ "Notice": "No bills or receipts found." }]);
-    const worksheet3 = XLSX.utils.json_to_sheet(miscData.length > 0 ? miscData : [{ "Notice": "No miscellaneous expense bills." }]);
+    if (filterType === "MONTHWISE") {
+      const monthGroups = {};
+      excelData.forEach((row) => {
+        const m = row["Month"] || "Unknown Month";
+        const cleanTabName = m.replace(/[:\/\\?*\[\]]/g, "-").substring(0, 31);
+        if (!monthGroups[cleanTabName]) monthGroups[cleanTabName] = [];
+        monthGroups[cleanTabName].push(row);
+      });
 
-    if (filterType === "BILLS_ONLY") {
-      XLSX.utils.book_append_sheet(workbook, worksheet2, "Bills Section");
-      XLSX.utils.book_append_sheet(workbook, worksheet1, "All Claims");
-      XLSX.utils.book_append_sheet(workbook, worksheet3, "Misc Bills");
+      const tabs = Object.keys(monthGroups);
+      if (tabs.length === 0) {
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([{ "Notice": "No claims data." }]), "No Data");
+      } else {
+        tabs.forEach((tabName) => {
+          XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(monthGroups[tabName]), tabName);
+        });
+      }
     } else {
-      XLSX.utils.book_append_sheet(workbook, worksheet1, "All Claims");
-      XLSX.utils.book_append_sheet(workbook, worksheet2, "Bills Section");
-      XLSX.utils.book_append_sheet(workbook, worksheet3, "Misc Bills");
+      const worksheet1 = XLSX.utils.json_to_sheet(excelData.length > 0 ? excelData : [{ "Notice": "No claims data." }]);
+      const worksheet2 = XLSX.utils.json_to_sheet(billsData.length > 0 ? billsData : [{ "Notice": "No bills or receipts found." }]);
+      const worksheet3 = XLSX.utils.json_to_sheet(miscData.length > 0 ? miscData : [{ "Notice": "No miscellaneous expense bills." }]);
+
+      if (filterType === "BILLS_ONLY") {
+        XLSX.utils.book_append_sheet(workbook, worksheet2, "Bills Section");
+        XLSX.utils.book_append_sheet(workbook, worksheet1, "All Claims");
+        XLSX.utils.book_append_sheet(workbook, worksheet3, "Misc Bills");
+      } else {
+        XLSX.utils.book_append_sheet(workbook, worksheet1, "All Claims");
+        XLSX.utils.book_append_sheet(workbook, worksheet2, "Bills Section");
+        XLSX.utils.book_append_sheet(workbook, worksheet3, "Misc Bills");
+      }
     }
 
     XLSX.writeFile(workbook, `Expense_Claims_${filterType || "Export"}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const getMenuItems = () => {
-    if (role === "L1") {
+    if (role === "MASTER") {
+      return [
+        { text: "Dashboard", path: "/master", icon: <LayoutDashboard size={20} /> },
+        { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
+        { text: "Add L2 User", path: "/add-l2", icon: <UserPlus size={20} /> },
+        { text: "Manage Users", path: "/users", icon: <Users size={20} /> },
+        { text: "System Logs", path: "/logs", icon: <ShieldAlert size={20} /> },
+        { text: "Profile", path: "/profile", icon: <User size={20} /> },
+      ];
+    } else if (role === "L2") {
+      return [
+        { text: "Dashboard", path: "/l2", icon: <LayoutDashboard size={20} /> },
+        { text: "Escalated Claims", path: "/l2-escalated", icon: <AlertTriangle size={20} /> },
+        { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
+        { text: "Add L1 Engineer", path: "/add-l1", icon: <UserPlus size={20} /> },
+        { text: "Manage Users", path: "/users", icon: <Users size={20} /> },
+        { text: "Profile", path: "/profile", icon: <User size={20} /> },
+      ];
+    } else if (role === "L1") {
       return [
         { text: "Dashboard", path: "/l1", icon: <LayoutDashboard size={20} /> },
         { text: "Verify Claims", path: "/l1-claims", icon: <FileSpreadsheet size={20} /> },
@@ -264,7 +301,7 @@ function PreviousClaims() {
       ];
     }
     return [
-      { text: "Dashboard", path: role === "L0" ? "/l0" : role === "L1" ? "/l1" : role === "L2" ? "/l2" : "/master", icon: <LayoutDashboard size={20} /> },
+      { text: "Dashboard", path: "/l0", icon: <LayoutDashboard size={20} /> },
       { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
       { text: "Profile", path: "/profile", icon: <User size={20} /> },
     ];
@@ -386,16 +423,19 @@ function PreviousClaims() {
           </div>
 
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <Button variant="success" onClick={() => exportToExcel("ACCEPTED")} style={{ flex: 1, minWidth: "200px" }}>
+            <Button variant="success" onClick={() => exportToExcel("ACCEPTED")} style={{ flex: 1, minWidth: "160px" }}>
               Accepted Only
             </Button>
-            <Button variant="danger" onClick={() => exportToExcel("REJECTED")} style={{ flex: 1, minWidth: "180px" }}>
+            <Button variant="danger" onClick={() => exportToExcel("REJECTED")} style={{ flex: 1, minWidth: "160px" }}>
               Rejected Only
             </Button>
             <Button variant="secondary" onClick={() => exportToExcel("BILLS_ONLY")} style={{ flex: 1, minWidth: "200px", background: "rgba(168, 85, 247, 0.2)", color: "#d8b4fe", border: "1px solid rgba(168, 85, 247, 0.4)" }}>
               Export Bills Section Sheet
             </Button>
-            <Button variant="primary" onClick={() => exportToExcel("ALL")} style={{ flex: 1, minWidth: "180px" }}>
+            <Button variant="warning" onClick={() => exportToExcel("MONTHWISE")} style={{ flex: 1, minWidth: "200px", background: "rgba(245, 158, 11, 0.2)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.4)" }}>
+              Export Monthwise Sheets
+            </Button>
+            <Button variant="primary" onClick={() => exportToExcel("ALL")} style={{ flex: 1, minWidth: "160px" }}>
               All Claims
             </Button>
           </div>

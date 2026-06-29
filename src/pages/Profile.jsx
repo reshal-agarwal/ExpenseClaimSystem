@@ -67,6 +67,7 @@ function Profile() {
   } else if (role === "MASTER") {
     menuItems = [
       { text: "Dashboard", path: "/master", icon: <LayoutDashboard size={20} /> },
+      { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
       { text: "Add L2 User", path: "/add-l2", icon: <UserPlus size={20} /> },
       { text: "Manage Users", path: "/users", icon: <Users size={20} /> },
       { text: "System Logs", path: "/logs", icon: <ShieldAlert size={20} /> },

@@ -45,6 +45,9 @@ function TravelClaim() {
   const [ptwId, setPtwId] = useState("");
   const [manualLat, setManualLat] = useState("");
   const [manualLng, setManualLng] = useState("");
+  const [nldMetro, setNldMetro] = useState("LD");
+  const [twoWheelerTripId, setTwoWheelerTripId] = useState("");
+  const [customerCover, setCustomerCover] = useState("No");
   const [isStarting, setIsStarting] = useState(false);
 
   const submitTravelRequest = async () => {
@@ -100,6 +103,9 @@ function TravelClaim() {
         rtLinkName: rtLinkName || "",
         ptwId: ptwId, // User entered PTW ID
         nocTicketId: nocTicketId || "",
+        nldMetro: nldMetro || "LD",
+        twoWheelerTripId: twoWheelerTripId || "",
+        customerCover: customerCover || "No",
         requestStatus: "ACTIVE_TRAVEL", // Bypass L1 approval, immediately start
         startTime: serverTimestamp(),
         startLocation: startLoc,
@@ -189,12 +195,32 @@ function TravelClaim() {
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="">Select Category</option>
-            <option value="ISP O&M">ISP O&M</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="Installation">Installation</option>
-            <option value="Emergency Fault Repair">Emergency Fault Repair</option>
-            <option value="Site Audit">Site Audit</option>
+            <option value="ISPONM services">ISPONM services</option>
+            <option value="OSPONM services">OSPONM services</option>
+            <option value="Passive ONM services">Passive ONM services</option>
+            <option value="Depot management">Depot management</option>
+            <option value="Project support">Project support</option>
           </Select>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
+            <Select label="LD / Metro" value={nldMetro} onChange={(e) => setNldMetro(e.target.value)}>
+              <option value="LD">LD (Long Distance / NLD)</option>
+              <option value="Metro">Metro</option>
+            </Select>
+
+            <Select label="Recover from Customer?" value={customerCover} onChange={(e) => setCustomerCover(e.target.value)}>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </Select>
+          </div>
+
+          <Input
+            label="2W Trip ID (Optional)"
+            type="text"
+            placeholder="Enter 2 Wheeler Trip ID if applicable"
+            value={twoWheelerTripId}
+            onChange={(e) => setTwoWheelerTripId(e.target.value)}
+          />
 
           <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
             <div style={{ flex: 1 }}>

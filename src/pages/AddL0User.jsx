@@ -10,8 +10,10 @@ import { auth, db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Input, Select } from "../components/Input";
 import { Button } from "../components/Button";
+import { useToast } from "../context/ToastContext";
 
 function AddL0User() {
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -28,7 +30,7 @@ function AddL0User() {
   const handleSubmit = async () => {
     try {
       if (!email || !password || !name) {
-        alert("Please fill required fields.");
+        showToast("Please fill required fields.", "error");
         return;
       }
       
@@ -52,14 +54,14 @@ function AddL0User() {
         createdAt: new Date().toISOString(),
       });
 
-      alert("L0 Engineer Created Successfully");
+      showToast("L0 Engineer Created Successfully", "success");
 
       setName(""); setEmail(""); setEmployeeId(""); setPassword("");
       setAgencyName(""); setAgencyFee(""); setBaseRegion("");
       setBaseLocation(""); setJoiningDate("");
 
     } catch (error) {
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 

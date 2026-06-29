@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { LayoutDashboard, UserPlus, Users, User, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, UserPlus, Users, User, AlertTriangle, FileSpreadsheet } from "lucide-react";
 
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
@@ -35,6 +35,7 @@ function L2Dashboard() {
   const menuItems = [
     { text: "Dashboard", path: "/l2", icon: <LayoutDashboard size={20} /> },
     { text: "Escalated Claims", path: "/l2-escalated", icon: <AlertTriangle size={20} /> },
+    { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
     { text: "Add L1 Engineer", path: "/add-l1", icon: <UserPlus size={20} /> },
     { text: "Manage Users", path: "/users", icon: <Users size={20} /> },
     { text: "Profile", path: "/profile", icon: <User size={20} /> },

@@ -50,6 +50,7 @@ function ActiveTravels() {
   const [activeTravels, setActiveTravels] = useState([]);
   const [loadingAction, setLoadingAction] = useState(null); // stores the travel ID being processed
   const [claimResult, setClaimResult] = useState(null); // stores success message details
+  const [reviewModal, setReviewModal] = useState(null); // stores trip review before submission
   const [manualEndCoords, setManualEndCoords] = useState({});
   const { showToast } = useToast();
 
@@ -77,8 +78,6 @@ function ActiveTravels() {
     }
   };
 
-  // startTravel function removed, since travel starts automatically now
-
   const endTravel = async (travel) => {
     setLoadingAction(travel.id);
     try {
@@ -96,18 +95,6 @@ function ActiveTravels() {
         endLocation = await getCurrentLocation();
       }
       
-      const claimedDistanceStr = window.prompt("Enter the total distance you travelled (in KM):");
-      if (claimedDistanceStr === null) {
-        setLoadingAction(null);
-        return;
-      }
-      const claimedDistance = parseFloat(claimedDistanceStr);
-      if (isNaN(claimedDistance) || claimedDistance < 0) {
-        showToast("Invalid distance entered. Please enter a valid number.", "error");
-        setLoadingAction(null);
-        return;
-      }
-
       const gpsDistance = parseFloat(haversineDistance(
         travel.startLocation.lat,
         travel.startLocation.lng,
@@ -115,12 +102,49 @@ function ActiveTravels() {
         endLocation.lng
       ).toFixed(2));
 
-      const isFlagged = Math.abs(claimedDistance - gpsDistance) > 1;
-      const flagReason = isFlagged ? `Distance mismatch (GPS: ${gpsDistance}km, Entered: ${claimedDistance}km)` : "";
+      setReviewModal({
+        travel,
+        endLocation,
+        gpsDistance,
+        customDistance: ""
+      });
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Failed to end travel. Please ensure location services are enabled.", "error");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
-      const ratePerKm = 2.5; 
-      const claimAmount = parseFloat((claimedDistance * ratePerKm).toFixed(2));
+  const confirmEndTravel = async (isCustom) => {
+    if (!reviewModal) return;
+    const { travel, endLocation, gpsDistance, customDistance } = reviewModal;
+    setLoadingAction(travel.id);
 
+    let claimedDistance = gpsDistance;
+    let isFlagged = false;
+    let flagReason = "";
+    let claimType = "NORMAL";
+
+    if (isCustom) {
+      const parsedCustom = parseFloat(customDistance);
+      if (isNaN(parsedCustom) || parsedCustom < 0) {
+        showToast("Please enter a valid custom distance in KM.", "error");
+        setLoadingAction(null);
+        return;
+      }
+      claimedDistance = parsedCustom;
+      if (Math.abs(claimedDistance - gpsDistance) > 0.05) {
+        isFlagged = true;
+        claimType = "EXCEPTIONAL";
+        flagReason = `Manual Distance Override (Computer: ${gpsDistance}km vs Entered: ${claimedDistance}km)`;
+      }
+    }
+
+    const ratePerKm = 2.5; 
+    const claimAmount = parseFloat((claimedDistance * ratePerKm).toFixed(2));
+
+    try {
       await updateDoc(doc(db, "travelRequests", travel.id), {
         requestStatus: "CLAIM_PENDING_APPROVAL",
         endTime: serverTimestamp(),
@@ -128,6 +152,7 @@ function ActiveTravels() {
         distanceTravelled: claimedDistance,
         gpsDistance: gpsDistance,
         claimAmount: claimAmount,
+        claimType: claimType,
         isFlagged,
         flagReason,
       });
@@ -139,11 +164,12 @@ function ActiveTravels() {
         amount: claimAmount,
         isFlagged
       });
-      showToast("Travel Ended Successfully!", "success");
+      showToast(isFlagged ? "Trip ended and marked as FLAGGED due to distance override!" : "Travel Ended Successfully!", isFlagged ? "info" : "success");
+      setReviewModal(null);
       fetchActiveTravels();
     } catch (error) {
       console.error(error);
-      showToast(error.message || "Failed to end travel. Please ensure location services are enabled.", "error");
+      showToast("Failed to finalize travel.", "error");
     } finally {
       setLoadingAction(null);
     }
@@ -177,6 +203,61 @@ function ActiveTravels() {
       <div className="main-content animate-fade-in">
         <h1 className="page-title">Active Travels</h1>
         <p className="page-subtitle">Manage your ongoing travel. Distance is automatically tracked via GPS.</p>
+
+        {reviewModal && (
+          <div className="glass-panel animate-fade-in" style={{ padding: "24px", marginBottom: "24px", borderLeft: "4px solid var(--primary-color)", background: "linear-gradient(145deg, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0.6) 100%)", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+            <h3 style={{ fontSize: "1.3rem", color: "var(--text-primary)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Navigation size={22} color="var(--primary-color)" /> Verify Trip Distance ({reviewModal.travel.travelId})
+            </h3>
+            <p className="text-secondary" style={{ marginBottom: "16px", fontSize: "0.95rem" }}>
+              The system calculated your distance based on start and end coordinates. Review the computer distance below before finalizing.
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px", background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "12px", border: "1px solid var(--panel-border)" }}>
+              <div>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "block", textTransform: "uppercase" }}>Computer (GPS) Distance</span>
+                <strong style={{ fontSize: "1.8rem", color: "#818cf8" }}>{reviewModal.gpsDistance} KM</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "block", textTransform: "uppercase" }}>Estimated Claim Amount</span>
+                <strong style={{ fontSize: "1.8rem", color: "#34d399" }}>₹{(reviewModal.gpsDistance * 2.5).toFixed(2)}</strong>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "24px" }}>
+              <Button variant="success" onClick={() => confirmEndTravel(false)} style={{ width: "100%", padding: "12px", fontSize: "1.05rem", fontWeight: "600" }}>
+                Accept Computer Distance (Submit Normal Claim)
+              </Button>
+            </div>
+
+            <div style={{ borderTop: "1px dashed var(--panel-border)", paddingTop: "20px" }}>
+              <h4 style={{ fontSize: "1rem", color: "#fbbf24", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <AlertTriangle size={18} /> Route Detour or Issue? Override Distance
+              </h4>
+              <p className="text-secondary" style={{ fontSize: "0.85rem", marginBottom: "12px" }}>
+                If you took a detour or faced a GPS issue, enter your actual distance below. Entering a custom distance will send this claim to <strong style={{ color: "#f87171" }}>Flagged / Exceptional Claims</strong> for manager review.
+              </p>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <Input 
+                  type="number" 
+                  placeholder="Enter custom distance (KM)" 
+                  value={reviewModal.customDistance}
+                  onChange={(e) => setReviewModal({...reviewModal, customDistance: e.target.value})}
+                  style={{ flex: 1 }}
+                />
+                <Button variant="danger" onClick={() => confirmEndTravel(true)} disabled={!reviewModal.customDistance}>
+                  Submit Custom Distance (Flagged)
+                </Button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: "16px", textAlign: "right" }}>
+              <button onClick={() => setReviewModal(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline", fontSize: "0.9rem" }}>
+                Cancel & Keep Trip Active
+              </button>
+            </div>
+          </div>
+        )}
 
         {claimResult && (
           <div className="glass-panel animate-fade-in" style={{ padding: "20px", marginBottom: "20px", borderLeft: "4px solid var(--success)", background: "rgba(16, 185, 129, 0.1)" }}>

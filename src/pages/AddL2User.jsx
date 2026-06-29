@@ -7,8 +7,10 @@ import { auth, db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
+import { useToast } from "../context/ToastContext";
 
 function AddL2User() {
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -17,12 +19,14 @@ function AddL2User() {
   const handleSubmit = async () => {
     try {
       if (!email || !password || !name) {
-        alert("Please fill required fields.");
+        showToast("Please fill required fields.", "error");
         return;
       }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
+
+      const managerId = localStorage.getItem("uid") || "MASTER";
 
       await setDoc(doc(db, "user", uid), {
         uid,
@@ -30,16 +34,17 @@ function AddL2User() {
         email,
         employeeId,
         role: "L2",
+        managerId,
         status: "ACTIVE",
         createdAt: new Date().toISOString(),
       });
 
-      alert("L2 User Created Successfully");
+      showToast("L2 User Created Successfully", "success");
       setName(""); setEmail(""); setEmployeeId(""); setPassword("");
 
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 

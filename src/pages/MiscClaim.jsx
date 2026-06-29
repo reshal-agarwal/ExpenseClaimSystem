@@ -10,14 +10,18 @@ import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Input, Select } from "../components/Input";
 import { Button } from "../components/Button";
+import { useToast } from "../context/ToastContext";
 
 function MiscClaim() {
+  const { showToast } = useToast();
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [remark, setRemark] = useState("");
   const [customerCover, setCustomerCover] = useState("No");
   const [amount, setAmount] = useState("");
   const [ocrAmount, setOcrAmount] = useState(null);
+  const [nldMetro, setNldMetro] = useState("LD");
+  const [twoWheelerTripId, setTwoWheelerTripId] = useState("");
 
   const [isScanning, setIsScanning] = useState(false);
   const [receiptImage, setReceiptImage] = useState(null);
@@ -49,16 +53,16 @@ function MiscClaim() {
           const formatted = maxAmount.toFixed(2);
           setAmount(formatted);
           setOcrAmount(formatted);
-          alert(`OCR detected total amount: ₹${formatted}`);
+          showToast(`OCR detected total amount: ₹${formatted}`, "success");
         } else {
-          alert("OCR could not confidently find a total amount. Please enter it manually.");
+          showToast("OCR could not confidently find a total amount. Please enter it manually.", "warning");
         }
       } else {
-        alert("OCR could not find any numbers. Please enter amount manually.");
+        showToast("OCR could not find any numbers. Please enter amount manually.", "warning");
       }
     } catch (error) {
       console.error("OCR Error:", error);
-      alert("Failed to scan receipt.");
+      showToast("Failed to scan receipt.", "error");
     } finally {
       setIsScanning(false);
     }
@@ -106,7 +110,7 @@ function MiscClaim() {
 
   const submitMiscClaim = async () => {
     if (!category || !amount) {
-      alert("Please fill required fields (Category and Amount).");
+      showToast("Please fill required fields (Category and Amount).", "error");
       return;
     }
 
@@ -141,6 +145,8 @@ function MiscClaim() {
         subCategory,
         remark,
         customerCover,
+        nldMetro: nldMetro || "LD",
+        twoWheelerTripId: twoWheelerTripId || "",
         claimAmount: parseFloat(amount),
         requestStatus: "CLAIM_PENDING_APPROVAL", // Goes straight to approval
         hasReceipt: !!receiptImage,
@@ -150,11 +156,13 @@ function MiscClaim() {
         createdAt: serverTimestamp(),
       });
 
-      alert(`Miscellaneous Claim Submitted!\nClaim ID: ${claimId}`);
+      showToast(`Miscellaneous Claim Submitted!\nClaim ID: ${claimId}`, "success");
       setCategory("");
       setSubCategory("");
       setRemark("");
       setCustomerCover("No");
+      setNldMetro("LD");
+      setTwoWheelerTripId("");
       setAmount("");
       setOcrAmount(null);
       setReceiptImage(null);
@@ -165,7 +173,7 @@ function MiscClaim() {
 
     } catch (error) {
       console.log(error);
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 
@@ -231,19 +239,26 @@ function MiscClaim() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <Select label="Claim Category" value={category} onChange={(e) => setCategory(e.target.value)}>
               <option value="">Select Category</option>
-              <option value="Toll Tax">Toll Tax</option>
-              <option value="Parking">Parking</option>
-              <option value="Hotel Stay">Hotel Stay</option>
-              <option value="Material Purchase">Material Purchase</option>
-              <option value="Other">Other</option>
+              <option value="ISPONM services">ISPONM services</option>
+              <option value="OSPONM services">OSPONM services</option>
+              <option value="Passive ONM services">Passive ONM services</option>
+              <option value="Depot management">Depot management</option>
+              <option value="Project support">Project support</option>
             </Select>
 
             <Input label="Sub Category" placeholder="e.g. NH-44 Toll" value={subCategory} onChange={(e) => setSubCategory(e.target.value)} />
 
-            <Select label="Will Cover With Customer?" value={customerCover} onChange={(e) => setCustomerCover(e.target.value)}>
+            <Select label="LD / Metro" value={nldMetro} onChange={(e) => setNldMetro(e.target.value)}>
+              <option value="LD">LD (Long Distance / NLD)</option>
+              <option value="Metro">Metro</option>
+            </Select>
+
+            <Select label="Recover from Customer?" value={customerCover} onChange={(e) => setCustomerCover(e.target.value)}>
               <option value="No">No</option>
               <option value="Yes">Yes</option>
             </Select>
+
+            <Input label="2W Trip ID (Optional)" placeholder="Enter 2W Trip ID if applicable" value={twoWheelerTripId} onChange={(e) => setTwoWheelerTripId(e.target.value)} />
 
             <Input label="Total Amount (₹)" type="number" placeholder="Auto-filled by OCR" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { 
-  LayoutDashboard, UserPlus, User, Check, X, AlertTriangle, FileSpreadsheet, Download
+  LayoutDashboard, UserPlus, User, Check, X, AlertTriangle, FileSpreadsheet, Download, RotateCcw
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -44,7 +44,7 @@ function L2EscalatedClaims() {
     try {
       const collectionName = claimType === "MISCELLANEOUS" ? "miscClaims" : "travelRequests";
       await updateDoc(doc(db, collectionName, id), {
-        requestStatus: "APPROVED",
+        requestStatus: "APPROVED_BY_L2",
         isFlagged: false, // Resolve any flag
         updatedAt: serverTimestamp()
       });
@@ -60,7 +60,7 @@ function L2EscalatedClaims() {
     try {
       const collectionName = claimType === "MISCELLANEOUS" ? "miscClaims" : "travelRequests";
       await updateDoc(doc(db, collectionName, id), {
-        requestStatus: "REJECTED",
+        requestStatus: "REJECTED_BY_L2",
         updatedAt: serverTimestamp()
       });
       showToast("Escalated Claim Rejected", "success");
@@ -68,6 +68,23 @@ function L2EscalatedClaims() {
     } catch (error) {
       console.log(error);
       showToast("Failed to reject claim", "error");
+    }
+  };
+
+  const revertToL1 = async (id, claimType) => {
+    try {
+      const collectionName = claimType === "MISCELLANEOUS" ? "miscClaims" : "travelRequests";
+      await updateDoc(doc(db, collectionName, id), {
+        requestStatus: "CLAIM_PENDING_APPROVAL",
+        isFlagged: false, // Remove escalation state so L1 sees it cleanly
+        flagReason: "Reverted by L2 Manager for re-evaluation",
+        updatedAt: serverTimestamp()
+      });
+      showToast("Claim successfully reverted to L1 Manager", "info");
+      fetchEscalated();
+    } catch (error) {
+      console.log(error);
+      showToast("Failed to revert claim", "error");
     }
   };
 
@@ -96,6 +113,7 @@ function L2EscalatedClaims() {
   const menuItems = [
     { text: "Dashboard", path: "/l2", icon: <LayoutDashboard size={20} /> },
     { text: "Escalated Claims", path: "/l2-escalated", icon: <AlertTriangle size={20} /> },
+    { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
     { text: "Add L1 Engineer", path: "/add-l1", icon: <UserPlus size={20} /> },
     { text: "Profile", path: "/profile", icon: <User size={20} /> },
   ];
@@ -159,6 +177,9 @@ function L2EscalatedClaims() {
                   <h2 style={{ color: "var(--success)", margin: 0 }}>₹{request.claimAmount}</h2>
                   <Button variant="success" onClick={() => acceptClaim(request.id, request.claimType)}>
                     <Check size={18} /> Accept
+                  </Button>
+                  <Button variant="secondary" onClick={() => revertToL1(request.id, request.claimType)} style={{ background: "rgba(234, 179, 8, 0.2)", color: "#facc15", border: "1px solid rgba(234, 179, 8, 0.4)" }}>
+                    <RotateCcw size={18} /> Revert to L1
                   </Button>
                   <Button variant="danger" onClick={() => rejectClaim(request.id, request.claimType)}>
                     <X size={18} /> Reject

@@ -1,13 +1,38 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Sun, Moon } from "lucide-react";
+import { LogOut, Sun, Moon, TrendingUp, FolderTree } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { useTheme } from "../context/ThemeContext";
 
-export function Sidebar({ menuItems }) {
+export function Sidebar({ menuItems = [] }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+
+  const role = localStorage.getItem("role");
+  const enhancedMenuItems = [...(menuItems || [])];
+
+  if (["L0", "L1", "L2", "MASTER"].includes(role)) {
+    if (!enhancedMenuItems.some(i => i.path === "/insights")) {
+      const dashIndex = enhancedMenuItems.findIndex(i => ["/l0", "/l1", "/l2", "/master"].includes(i.path));
+      enhancedMenuItems.splice(dashIndex !== -1 ? dashIndex + 1 : 1, 0, {
+        text: "Insights & Analytics",
+        path: "/insights",
+        icon: <TrendingUp size={20} />
+      });
+    }
+  }
+
+  if (role === "MASTER") {
+    if (!enhancedMenuItems.some(i => i.path === "/org-tree")) {
+      const insIndex = enhancedMenuItems.findIndex(i => i.path === "/insights");
+      enhancedMenuItems.splice(insIndex !== -1 ? insIndex + 1 : 1, 0, {
+        text: "Org Hierarchy Tree",
+        path: "/org-tree",
+        icon: <FolderTree size={20} />
+      });
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -38,7 +63,7 @@ export function Sidebar({ menuItems }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
-        {menuItems.map((item, index) => {
+        {enhancedMenuItems.map((item, index) => {
         const isActive = location.pathname === item.path;
         return (
           <button

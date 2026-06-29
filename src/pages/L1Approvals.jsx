@@ -8,8 +8,10 @@ import {
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Button } from "../components/Button";
+import { useToast } from "../context/ToastContext";
 
 function L1Approvals() {
+  const { showToast } = useToast();
   const [requests, setRequests] = useState([]);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ function L1Approvals() {
         requestStatus: nextStatus,
         updatedAt: serverTimestamp()
       });
-      alert(req.claimType === "MISCELLANEOUS" ? "Claim Approved" : "Travel Approved");
+      showToast(req.claimType === "MISCELLANEOUS" ? "Claim Approved" : "Travel Approved", "success");
       fetchRequests();
     } catch (error) {
       console.log(error);
@@ -74,7 +76,7 @@ function L1Approvals() {
         requestStatus: nextStatus,
         updatedAt: serverTimestamp()
       });
-      alert(req.claimType === "MISCELLANEOUS" ? "Claim Rejected" : "Travel Rejected");
+      showToast(req.claimType === "MISCELLANEOUS" ? "Claim Rejected" : "Travel Rejected", "error");
       fetchRequests();
     } catch (error) {
       console.log(error);

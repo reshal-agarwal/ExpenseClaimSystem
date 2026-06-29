@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { 
   LayoutDashboard, Users, CheckSquare, ClipboardCheck, 
-  AlertTriangle, UserPlus, User, Check, X, FileSpreadsheet
+  AlertTriangle, UserPlus, User, Check, X, FileSpreadsheet, RotateCcw
 } from "lucide-react";
 
 import { db } from "../firebase";
@@ -122,6 +122,25 @@ function FlaggedClaims() {
     }
   };
 
+  const revertToL1 = async (id) => {
+    try {
+      const req = flaggedRequests.find(r => r.id === id);
+      const collectionName = req.claimType === "MISCELLANEOUS" ? "miscClaims" : "travelRequests";
+      
+      await updateDoc(doc(db, collectionName, id), {
+        requestStatus: "CLAIM_PENDING_APPROVAL",
+        isFlagged: false, // Remove flag so L1 can re-verify normally
+        flagReason: "Reverted by L2 Manager for L1 re-evaluation",
+        updatedAt: serverTimestamp()
+      });
+      showToast("Claim reverted back to L1 Manager", "info");
+      fetchFlagged();
+    } catch (error) {
+      console.log(error);
+      showToast("Failed to revert claim", "error");
+    }
+  };
+
   const role = localStorage.getItem("role");
 
   // Determine which sidebar to show based on role
@@ -230,6 +249,11 @@ function FlaggedClaims() {
                           <Button variant="success" onClick={() => approveFlagged(request.id, false)}>
                             <Check size={18} /> Approve As Is
                           </Button>
+                          {(role === "L2" || role === "L3" || role === "MASTER") && (
+                            <Button variant="secondary" onClick={() => revertToL1(request.id)} style={{ background: "rgba(234, 179, 8, 0.2)", color: "#facc15", border: "1px solid rgba(234, 179, 8, 0.4)" }}>
+                              <RotateCcw size={18} /> Revert to L1
+                            </Button>
+                          )}
                           <Button variant="danger" onClick={() => rejectFlagged(request.id)}>
                             <X size={18} /> Delete / Reject Claim
                           </Button>

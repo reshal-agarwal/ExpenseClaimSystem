@@ -18,6 +18,10 @@ import FlaggedClaims from "./pages/FlaggedClaims";
 import L2EscalatedClaims from "./pages/L2EscalatedClaims";
 import ManageUsers from "./pages/ManageUsers";
 import Profile from "./pages/Profile";
+import RejectedClaims from "./pages/RejectedClaims";
+import Insights from "./pages/Insights";
+import OrgTree from "./pages/OrgTree";
+import L1Approvals from "./pages/L1Approvals";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -172,6 +176,38 @@ function App() {
   element={
     <ProtectedRoute allowedRoles={["L0", "L1", "L2", "MASTER"]}>
       <Profile />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/rejected-claims"
+  element={
+    <ProtectedRoute allowedRoles={["L0"]}>
+      <RejectedClaims />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/insights"
+  element={
+    <ProtectedRoute allowedRoles={["L0", "L1", "L2", "MASTER"]}>
+      <Insights />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/org-tree"
+  element={
+    <ProtectedRoute allowedRoles={["L2", "MASTER"]}>
+      <OrgTree />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/l1-approvals"
+  element={
+    <ProtectedRoute allowedRoles={["L1"]}>
+      <L1Approvals />
     </ProtectedRoute>
   }
 />

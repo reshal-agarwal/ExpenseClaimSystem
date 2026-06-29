@@ -6,12 +6,17 @@ import { LayoutDashboard, FileSpreadsheet, User } from "lucide-react";
 import { db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Button } from "../components/Button";
+import { useToast } from "../context/ToastContext";
 
 function PreviousClaims() {
+  const { showToast } = useToast();
   const [claims, setClaims] = useState([]);
   const [role, setRole] = useState("L0");
   const [viewMode, setViewMode] = useState("FLAT"); // FLAT or NAME
   const [filterEngineer, setFilterEngineer] = useState("ALL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [managerMap, setManagerMap] = useState({});
 
   useEffect(() => {
     fetchClaims();
@@ -52,8 +57,19 @@ function PreviousClaims() {
         data.push({ id: doc.id, ...doc.data() });
       });
       
-      const completedClaims = data.filter(c => c.requestStatus === "APPROVED" || c.requestStatus === "REJECTED");      
+      const completedStatuses = ["APPROVED", "REJECTED", "APPROVED_BY_L2", "REJECTED_BY_L2"];
+      const completedClaims = data.filter(c => completedStatuses.includes(c.requestStatus));      
       completedClaims.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      
+      const uniqueManagerIds = [...new Set(data.map(c => c.managerId))].filter(Boolean);
+      const mMap = {};
+      for (const mId of uniqueManagerIds) {
+        const mDoc = await getDoc(doc(db, "user", mId));
+        if (mDoc.exists()) {
+          mMap[mId] = mDoc.data().name;
+        }
+      }
+      setManagerMap(mMap);
       
       setClaims(completedClaims);
     } catch (error) {
@@ -61,9 +77,57 @@ function PreviousClaims() {
     }
   };
 
-  const exportToExcel = async () => {
+  const getFilteredClaims = () => {
+    let list = filterEngineer === "ALL" 
+      ? claims 
+      : role === "L2" 
+        ? claims.filter(c => c.managerId === filterEngineer)
+        : claims.filter(c => c.employeeName === filterEngineer);
+
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      list = list.filter(c => {
+        const cDate = (c.startTime || c.createdAt) ? new Date((c.startTime || c.createdAt).seconds * 1000) : new Date(0);
+        return cDate >= start;
+      });
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      list = list.filter(c => {
+        const cDate = (c.startTime || c.createdAt) ? new Date((c.startTime || c.createdAt).seconds * 1000) : new Date();
+        return cDate <= end;
+      });
+    }
+
+    return list;
+  };
+
+  const displayedClaims = getFilteredClaims();
+
+  const exportToExcel = async (filterType) => {
+    let filteredForExport = displayedClaims;
+
+    if (filterType === "ACCEPTED") {
+      filteredForExport = displayedClaims.filter(c => c.requestStatus.includes("APPROVED"));
+    } else if (filterType === "REJECTED") {
+      filteredForExport = displayedClaims.filter(c => c.requestStatus.includes("REJECTED"));
+    } else if (filterType === "BILLS_ONLY") {
+      // Include all claims in bills export so user always gets their Bills sheet
+      filteredForExport = displayedClaims;
+    } else if (filterType === "ALL") {
+      filteredForExport = displayedClaims;
+    }
+
+    if (filteredForExport.length === 0) {
+      showToast("No claims match this filter to export.", "info");
+      return;
+    }
+
     const userMap = {};
-    for (const claim of claims) {
+    for (const claim of filteredForExport) {
       if (!userMap[claim.employeeUid]) {
         const userDoc = await getDoc(doc(db, "user", claim.employeeUid));
         if (userDoc.exists()) {
@@ -72,7 +136,8 @@ function PreviousClaims() {
       }
     }
 
-    const excelData = claims.map((claim) => {
+    // SHEET 1: All Main Claims Data
+    const excelData = filteredForExport.map((claim) => {
       const user = userMap[claim.employeeUid] || {};
       
       const dateOfVisit = (claim.startTime || claim.createdAt) ? new Date((claim.startTime || claim.createdAt).seconds * 1000).toLocaleDateString() : "";
@@ -87,7 +152,7 @@ function PreviousClaims() {
 
       return {
         "Month": month,
-        "NLD/Met": user.baseRegion || "",
+        "NLD/Met": claim.nldMetro || user.baseRegion || "",
         "RT/LINK Name": claim.rtLinkName || "",
         "Engineer Name": claim.employeeName || "",
         "Emp": claim.employeeId || "",
@@ -103,25 +168,88 @@ function PreviousClaims() {
         "Agency Fee(Lobo, NR, RHPL 2.5% & Prompt 6%)": agencyFeePercent,
         "Agency Cost": agencyCost,
         "Total Amount with Agency Fee": totalAmountWithFee,
-        "Receipt/ No Receipt": claim.hasReceipt ? "Receipt" : "No receipt",
+        "Receipt/ No Receipt": claim.hasReceipt || claim.receiptUrl ? "Receipt Attached" : "No receipt",
         "Travel Hrs (Day/Night)": "Day",
         "Claim Type (Normal/ Exceptional)": claim.claimType === "MISCELLANEOUS" ? "MISC" : "Normal",
         "Purpose of Visit": claim.claimType === "MISCELLANEOUS" ? claim.category : (claim.purpose || ""),
-        "2W Trip ID": claim.travelId || claim.claimId || "",
+        "2W Trip ID": claim.twoWheelerTripId || claim.travelId || claim.claimId || claim.id || "",
         "PTW ID": claim.ptwId || "",
         "Reference NOC ticket ID": claim.nocTicketId || "",
         "Claim Categories": claim.claimType === "MISCELLANEOUS" ? claim.category : (claim.category || ""),
         "Remark": claim.remark || "",
         "Sub Categories": claim.subCategory || "",
         "Claim Will Cover With Customer Yes/No": claim.customerCover || "No",
-        "Owner": user.managerId || ""
+        "Owner": user.managerId || "",
+        "L1 Manager": managerMap[claim.managerId] || claim.managerId || ""
       };
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    // SHEET 2: Dedicated Bills Section (Bills & Receipts with HTML/URLs)
+    const billsData = filteredForExport.map((c) => {
+      const user = userMap[c.employeeUid] || {};
+      const dateStr = (c.startTime || c.createdAt) ? new Date((c.startTime || c.createdAt).seconds * 1000).toLocaleDateString() : "";
+      const monthStr = (c.startTime || c.createdAt) ? new Date((c.startTime || c.createdAt).seconds * 1000).toLocaleString('default', { month: 'short' }) + "'" + new Date((c.startTime || c.createdAt).seconds * 1000).getFullYear().toString().substr(-2) : "";
+
+      return {
+        "Month": monthStr,
+        "Bill / Claim ID": c.travelId || c.claimId || c.id,
+        "2W Trip ID": c.twoWheelerTripId || "",
+        "LD / Metro": c.nldMetro || user.baseRegion || "",
+        "Engineer Name": c.employeeName || "",
+        "Emp ID": c.employeeId || "",
+        "Bill Type": c.claimType === "MISCELLANEOUS" ? "Miscellaneous Bill" : "Travel Receipt Bill",
+        "Category / Purpose": c.claimType === "MISCELLANEOUS" ? c.category : (c.purpose || c.popName || ""),
+        "Recover from Customer?": c.customerCover || "No",
+        "Date Submitted": dateStr,
+        "Bill Amount (₹)": Number(c.claimAmount || 0),
+        "Receipt Status": c.hasReceipt || c.receiptUrl ? "Verified / Uploaded" : "No Digital Receipt Attached",
+        "HTML / Receipt Link": c.receiptUrl || "No receipt link",
+        "Approval Status": c.requestStatus ? c.requestStatus.replace(/_/g, " ") : "PENDING",
+        "Engineer Location": user.baseLocation || "",
+        "L1 Manager": managerMap[c.managerId] || c.managerId || ""
+      };
+    });
+
+    // SHEET 3: Miscellaneous Expense Bills Sheet
+    const miscData = filteredForExport
+      .filter(c => c.claimType === "MISCELLANEOUS")
+      .map((c) => {
+        const dateStr = (c.startTime || c.createdAt) ? new Date((c.startTime || c.createdAt).seconds * 1000).toLocaleDateString() : "";
+        return {
+          "Misc ID": c.claimId || c.id,
+          "2W Trip ID": c.twoWheelerTripId || "",
+          "LD / Metro": c.nldMetro || "",
+          "Engineer Name": c.employeeName || "",
+          "Emp ID": c.employeeId || "",
+          "Expense Category": c.category || "",
+          "Sub Category": c.subCategory || "",
+          "Recover from Customer?": c.customerCover || "No",
+          "Claim Amount (₹)": Number(c.claimAmount || 0),
+          "Receipt Attached": c.hasReceipt || c.receiptUrl ? "Yes" : "No",
+          "Receipt Link": c.receiptUrl || "None",
+          "Remark / Justification": c.remark || "",
+          "Date": dateStr,
+          "Status": c.requestStatus ? c.requestStatus.replace(/_/g, " ") : "PENDING"
+        };
+      });
+
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Claims");
-    XLSX.writeFile(workbook, `Expense_Claims_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    const worksheet1 = XLSX.utils.json_to_sheet(excelData.length > 0 ? excelData : [{ "Notice": "No claims data." }]);
+    const worksheet2 = XLSX.utils.json_to_sheet(billsData.length > 0 ? billsData : [{ "Notice": "No bills or receipts found." }]);
+    const worksheet3 = XLSX.utils.json_to_sheet(miscData.length > 0 ? miscData : [{ "Notice": "No miscellaneous expense bills." }]);
+
+    if (filterType === "BILLS_ONLY") {
+      XLSX.utils.book_append_sheet(workbook, worksheet2, "Bills Section");
+      XLSX.utils.book_append_sheet(workbook, worksheet1, "All Claims");
+      XLSX.utils.book_append_sheet(workbook, worksheet3, "Misc Bills");
+    } else {
+      XLSX.utils.book_append_sheet(workbook, worksheet1, "All Claims");
+      XLSX.utils.book_append_sheet(workbook, worksheet2, "Bills Section");
+      XLSX.utils.book_append_sheet(workbook, worksheet3, "Misc Bills");
+    }
+
+    XLSX.writeFile(workbook, `Expense_Claims_${filterType || "Export"}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const getMenuItems = () => {
@@ -137,16 +265,12 @@ function PreviousClaims() {
     }
     return [
       { text: "Dashboard", path: role === "L0" ? "/l0" : role === "L1" ? "/l1" : role === "L2" ? "/l2" : "/master", icon: <LayoutDashboard size={20} /> },
-      { text: "Previous Claims", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
+      { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
       { text: "Profile", path: "/profile", icon: <User size={20} /> },
     ];
   };
 
   const renderGroupedClaims = () => {
-    const displayedClaims = filterEngineer === "ALL" 
-      ? claims 
-      : claims.filter(c => c.employeeName === filterEngineer);
-
     if (displayedClaims.length === 0) {
       return (
         <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
@@ -173,8 +297,8 @@ function PreviousClaims() {
         </div>
         <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
           <h2 style={{ color: "var(--success)", margin: 0 }}>₹{claim.claimAmount}</h2>
-          <span className={`badge ${claim.requestStatus === 'REJECTED' ? 'badge-danger' : claim.requestStatus === 'APPROVED' ? 'badge-success' : 'badge-warning'}`}>
-            {claim.requestStatus}
+          <span className={`badge ${claim.requestStatus.includes('REJECTED') ? 'badge-danger' : claim.requestStatus.includes('APPROVED') ? 'badge-success' : 'badge-warning'}`}>
+            {claim.requestStatus.replace(/_/g, ' ')}
           </span>
           {claim.receiptUrl && (
             claim.receiptUrl.startsWith("data:image") ? (
@@ -220,12 +344,61 @@ function PreviousClaims() {
       <div className="main-content animate-fade-in">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <div>
-            <h1 className="page-title">Previous Claims</h1>
-            <p className="page-subtitle">View and export completed travel claims.</p>
+            <h1 className="page-title">Previous Claims / Download Excel</h1>
+            <p className="page-subtitle">View and export completed travel claims in multiple formats.</p>
           </div>
-          <Button onClick={exportToExcel} style={{ padding: "12px 20px" }}>
-            <FileSpreadsheet size={18} /> Download Excel
-          </Button>
+        </div>
+
+        {/* ADVANCED EXCEL EXPORT SECTION */}
+        <div className="glass-panel" style={{ padding: "20px", marginBottom: "30px", background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.2)" }}>
+          <h3 style={{ marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px", color: "var(--primary-color)" }}>
+            <FileSpreadsheet size={20} /> Advanced Excel Export & Date Range Filter
+          </h3>
+
+          <div style={{ display: "flex", gap: "16px", marginBottom: "18px", flexWrap: "wrap", alignItems: "center", background: "rgba(0,0,0,0.25)", padding: "12px 16px", borderRadius: "10px", border: "1px solid var(--panel-border)" }}>
+            <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)", fontWeight: "600" }}>Export Date Range:</span>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <label style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>From:</label>
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)} 
+                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid var(--panel-border)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <label style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>To:</label>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)} 
+                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid var(--panel-border)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button onClick={() => { setStartDate(""); setEndDate(""); }} style={{ background: "transparent", border: "1px solid var(--danger)", color: "var(--danger)", padding: "4px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "600" }}>
+                Clear Dates
+              </button>
+            )}
+            <span style={{ marginLeft: "auto", fontSize: "0.85rem", color: "#a5b4fc" }}>
+              Showing {displayedClaims.length} records in range
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <Button variant="success" onClick={() => exportToExcel("ACCEPTED")} style={{ flex: 1, minWidth: "200px" }}>
+              Accepted Only
+            </Button>
+            <Button variant="danger" onClick={() => exportToExcel("REJECTED")} style={{ flex: 1, minWidth: "180px" }}>
+              Rejected Only
+            </Button>
+            <Button variant="secondary" onClick={() => exportToExcel("BILLS_ONLY")} style={{ flex: 1, minWidth: "200px", background: "rgba(168, 85, 247, 0.2)", color: "#d8b4fe", border: "1px solid rgba(168, 85, 247, 0.4)" }}>
+              Export Bills Section Sheet
+            </Button>
+            <Button variant="primary" onClick={() => exportToExcel("ALL")} style={{ flex: 1, minWidth: "180px" }}>
+              All Claims
+            </Button>
+          </div>
         </div>
 
         {role !== "L0" && (
@@ -234,16 +407,21 @@ function PreviousClaims() {
             
             <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Engineer:</span>
+                <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>{role === "L2" ? "L1 Manager:" : "Engineer:"}</span>
                 <select 
                   value={filterEngineer} 
                   onChange={(e) => setFilterEngineer(e.target.value)}
                   style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--panel-border)", background: "var(--bg-secondary)", color: "var(--text-primary)", outline: "none", cursor: "pointer" }}
                 >
-                  <option value="ALL">All Engineers</option>
-                  {Array.from(new Set(claims.map(c => c.employeeName))).filter(Boolean).map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
+                  <option value="ALL">All {role === "L2" ? "L1 Managers" : "Engineers"}</option>
+                  {role === "L2" 
+                    ? Object.entries(managerMap).map(([mId, mName]) => (
+                        <option key={mId} value={mId}>{mName}</option>
+                      ))
+                    : Array.from(new Set(claims.map(c => c.employeeName))).filter(Boolean).map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))
+                  }
                 </select>
               </div>
 

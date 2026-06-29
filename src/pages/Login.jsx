@@ -7,11 +7,13 @@ import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 
 import { auth, db } from "../firebase";
+import { useToast } from "../context/ToastContext";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const { showToast } = useToast();
 
   const navigate = useNavigate();
 
@@ -32,13 +34,13 @@ function Login() {
   const resetPassword = async () => {
     try {
       if (!email) {
-        alert("Enter your email first");
+        showToast("Enter your email first", "error");
         return;
       }
       await sendPasswordResetEmail(auth, email);
-      alert("Password reset link sent to your email");
+      showToast("Password reset link sent to your email", "success");
     } catch (error) {
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 
@@ -51,7 +53,7 @@ function Login() {
       const userDoc = await getDoc(doc(db, "user", uid));
 
       if (!userDoc.exists()) {
-        alert("User record not found.");
+        showToast("User record not found.", "error");
         return;
       }
 
@@ -62,10 +64,10 @@ function Login() {
       else if (userData.role === "L2") navigate("/l2", { replace: true });
       else if (userData.role === "L1") navigate("/l1", { replace: true });
       else if (userData.role === "L0") navigate("/l0", { replace: true });
-      else alert("Invalid role assigned.");
+      else showToast("Invalid role assigned.", "error");
 
     } catch (error) {
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 

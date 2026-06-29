@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { LayoutDashboard, UserPlus, User } from "lucide-react";
+import { LayoutDashboard, UserPlus, User, FileSpreadsheet } from "lucide-react";
 
 import { auth, db } from "../firebase";
 import { Sidebar } from "../components/Sidebar";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
+import { useToast } from "../context/ToastContext";
 
 function AddL1User() {
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -17,12 +19,14 @@ function AddL1User() {
   const handleSubmit = async () => {
     try {
       if (!email || !password || !name) {
-        alert("Please fill required fields.");
+        showToast("Please fill required fields.", "error");
         return;
       }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
+
+      const managerId = localStorage.getItem("uid") || "";
 
       await setDoc(doc(db, "user", uid), {
         uid,
@@ -30,21 +34,23 @@ function AddL1User() {
         email,
         employeeId,
         role: "L1",
+        managerId,
         createdBy: "L2",
         status: "ACTIVE",
         createdAt: new Date().toISOString(),
       });
 
-      alert("L1 User Created Successfully");
+      showToast("L1 User Created Successfully", "success");
       setName(""); setEmail(""); setEmployeeId(""); setPassword("");
 
     } catch (error) {
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 
   const menuItems = [
     { text: "Dashboard", path: "/l2", icon: <LayoutDashboard size={20} /> },
+    { text: "Download Excel", path: "/previous-claims", icon: <FileSpreadsheet size={20} /> },
     { text: "Add L1 Engineer", path: "/add-l1", icon: <UserPlus size={20} /> },
     { text: "Profile", path: "/profile", icon: <User size={20} /> },
   ];

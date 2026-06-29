@@ -176,6 +176,20 @@ function ActiveTravels() {
   };
 
   const handleManualCoordChange = (travelId, field, value) => {
+    if (field === 'lat' && (value.includes(',') || value.trim().includes(' '))) {
+      const parts = value.split(/[,\s]+/).filter(Boolean);
+      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        setManualEndCoords(prev => ({
+          ...prev,
+          [travelId]: {
+            ...prev[travelId],
+            lat: parts[0],
+            lng: parts[1]
+          }
+        }));
+        return;
+      }
+    }
     setManualEndCoords(prev => ({
       ...prev,
       [travelId]: {
@@ -316,13 +330,13 @@ function ActiveTravels() {
               <div style={{ minWidth: "250px", textAlign: "right" }}>
                 <div style={{ display: "flex", gap: "10px", marginBottom: "10px", textAlign: "left" }}>
                   <Input 
-                    type="number" 
-                    placeholder="End Lat (Optional)" 
+                    type="text" 
+                    placeholder="End Lat (or paste lat, lng)" 
                     value={manualEndCoords[travel.id]?.lat || ""}
                     onChange={(e) => handleManualCoordChange(travel.id, 'lat', e.target.value)}
                   />
                   <Input 
-                    type="number" 
+                    type="text" 
                     placeholder="End Lng (Optional)" 
                     value={manualEndCoords[travel.id]?.lng || ""}
                     onChange={(e) => handleManualCoordChange(travel.id, 'lng', e.target.value)}

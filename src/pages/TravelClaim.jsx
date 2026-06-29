@@ -226,17 +226,28 @@ function TravelClaim() {
             <div style={{ flex: 1 }}>
               <Input
                 label="Manual Start Latitude (Optional)"
-                type="number"
-                placeholder="e.g. 28.7041"
+                type="text"
+                placeholder="e.g. 22.6654804 or paste lat, lng"
                 value={manualLat}
-                onChange={(e) => setManualLat(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val.includes(",") || val.trim().includes(" ")) {
+                    const parts = val.split(/[,\s]+/).filter(Boolean);
+                    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                      setManualLat(parts[0]);
+                      setManualLng(parts[1]);
+                      return;
+                    }
+                  }
+                  setManualLat(val);
+                }}
               />
             </div>
             <div style={{ flex: 1 }}>
               <Input
                 label="Manual Start Longitude (Optional)"
-                type="number"
-                placeholder="e.g. 77.1025"
+                type="text"
+                placeholder="e.g. 88.3879346"
                 value={manualLng}
                 onChange={(e) => setManualLng(e.target.value)}
               />

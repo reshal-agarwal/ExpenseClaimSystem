@@ -22,6 +22,7 @@ import RejectedClaims from "./pages/RejectedClaims";
 import Insights from "./pages/Insights";
 import OrgTree from "./pages/OrgTree";
 import L1Approvals from "./pages/L1Approvals";
+import SystemLogs from "./pages/SystemLogs";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -208,6 +209,14 @@ function App() {
   element={
     <ProtectedRoute allowedRoles={["L1"]}>
       <L1Approvals />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/logs"
+  element={
+    <ProtectedRoute allowedRoles={["MASTER"]}>
+      <SystemLogs />
     </ProtectedRoute>
   }
 />
